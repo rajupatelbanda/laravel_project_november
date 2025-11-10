@@ -51,4 +51,53 @@ class AuthController extends Controller
             'user' => $user,
         ], 201);
     }
+
+    public function login(Request $request)
+    {
+        // Validate the incoming request data
+        $validatedData = Validator::make($request->all(), [
+            'email' => 'required|string|email',
+            'password' => 'required|string',
+        ]);
+
+        if ($validatedData->fails()) {
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Validation Error!',
+                'data' => $validatedData->errors(),
+            ], 403);
+        }
+        // Attempt to find the user by email
+        $user = User::where('email', $request->email)->first();
+
+        // Check if the user exists and the password is correct
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'message' => 'Invalid login credentials.',
+            ], 401);
+        }
+
+        // Generate an API token for the user
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        // Return a response with the user and token
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+            'user' => $user,
+        ], 200);
+    }
+    public function logout(Request $request)
+    {
+        // Revoke the token that was used to authenticate the current request
+        $request->user()->tokens()->delete();
+
+        return response()->json([
+            'message' => 'Successfully logged out',
+        ], 200);
+    }
+    public function me(Request $request)
+    {
+        return response()->json($request->user());
+    }
 }
